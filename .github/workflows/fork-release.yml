@@ -1,0 +1,152 @@
+name: Fork Release
+
+on:
+  push:
+    branches:
+      - fork
+  workflow_dispatch:
+
+env:
+  SCHEME: Klaxon
+  PROJECT: Klaxon.xcodeproj
+  APP_NAME: Klaxon
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        # Full history: the project's Update Build Number phase derives
+        # CFBundleVersion from the commit count, which is 1 on a shallow clone.
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Determine Version
+        run: |
+          MARKETING_VERSION=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' \
+            "$PROJECT/project.pbxproj" | head -1)
+          VERSION="${MARKETING_VERSION}-fork.${GITHUB_RUN_NUMBER}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=fork-v$VERSION" >> "$GITHUB_ENV"
+          echo "Releasing $VERSION"
+
+      - name: Build Archive
+        run: |
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -archivePath "build/$APP_NAME.xcarchive" \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Import Signing Certificate
+        env:
+          CERT_P12: ${{ secrets.FORK_SIGNING_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.FORK_SIGNING_CERT_PASSWORD }}
+        run: |
+          # A stable signing identity is the point of this step: macOS ties the
+          # calendar permission to the app's designated requirement, which for an
+          # ad-hoc signature is a per-build hash. Signing every release with the
+          # same certificate keeps the requirement, and so the granted permission,
+          # unchanged across updates. Fail rather than fall back to ad-hoc.
+          if [ -z "$CERT_P12" ]; then
+            echo "FORK_SIGNING_CERT_P12 is not set; releases would get an unstable signature" >&2
+            exit 1
+          fi
+
+          echo "$CERT_P12" | base64 --decode > certificate.p12
+
+          KEYCHAIN="$RUNNER_TEMP/fork-signing.keychain"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          security create-keychain -p temppass "$KEYCHAIN"
+          security list-keychains -s $(security list-keychains | tr -d '"') "$KEYCHAIN"
+          security unlock-keychain -p temppass "$KEYCHAIN"
+          security set-keychain-settings "$KEYCHAIN"
+
+          security import certificate.p12 -k "$KEYCHAIN" -P "$CERT_PASSWORD" \
+            -f pkcs12 -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k temppass "$KEYCHAIN" > /dev/null
+
+          rm certificate.p12
+
+          # The certificate is self-signed, so it is listed as untrusted and
+          # find-identity -v reports nothing. codesign only needs the private key.
+          security find-identity -p codesigning "$KEYCHAIN"
+
+      - name: Sign App
+        run: |
+          mkdir -p build/export
+          cp -R "build/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app" build/export/
+
+          security unlock-keychain -p temppass "$KEYCHAIN"
+
+          # --entitlements is required: the archive is built unsigned, so the
+          # sandbox and calendar entitlements are only applied here.
+          codesign --force --sign "Klaxon Fork Signing" --keychain "$KEYCHAIN" \
+            --entitlements Sources/Klaxon.entitlements \
+            "build/export/$APP_NAME.app"
+
+          codesign --verify --strict --verbose=2 "build/export/$APP_NAME.app"
+          codesign -dvv "build/export/$APP_NAME.app"
+          codesign -d --requirements - "build/export/$APP_NAME.app"
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg_contents
+          cp -R "build/export/$APP_NAME.app" dmg_contents/
+          ln -s /Applications dmg_contents/Applications
+
+          hdiutil create -volname "$APP_NAME" \
+            -srcfolder dmg_contents \
+            -ov -format UDZO \
+            "build/$APP_NAME-$VERSION.dmg"
+
+      - name: Create ZIP
+        run: |
+          cd build/export
+          ditto -c -k --keepParent "$APP_NAME.app" "../$APP_NAME-$VERSION.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ env.APP_NAME }} ${{ env.VERSION }}
+          body: |
+            Automated build of the `fork` branch at ${{ github.sha }}.
+
+            ### Installation
+            1. Download `${{ env.APP_NAME }}-${{ env.VERSION }}.dmg`
+            2. Open the DMG and drag ${{ env.APP_NAME }} to your Applications folder
+            3. This build is signed with a self-signed certificate and is not
+               notarized, so the first launch needs a right-click and Open, or
+               `xattr -dr com.apple.quarantine /Applications/${{ env.APP_NAME }}.app`
+
+            Every fork release is signed with the same certificate, so an update
+            keeps the calendar permission already granted to an earlier one.
+
+            ### Requirements
+            - macOS 13.0 or later
+          files: |
+            build/${{ env.APP_NAME }}-${{ env.VERSION }}.dmg
+            build/${{ env.APP_NAME }}-${{ env.VERSION }}.zip
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
