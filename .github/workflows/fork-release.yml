@@ -36,9 +36,11 @@ jobs:
 
       - name: Determine Version
         run: |
-          MARKETING_VERSION=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' \
-            "$PROJECT/project.pbxproj" | head -1)
-          VERSION="${MARKETING_VERSION}-fork.${GITHUB_RUN_NUMBER}"
+          # Sources/Info.plist hardcodes the version, so MARKETING_VERSION in
+          # the project is not what the app reports.
+          BASE_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+            Sources/Info.plist)
+          VERSION="${BASE_VERSION}-fork.${GITHUB_RUN_NUMBER}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=fork-v$VERSION" >> "$GITHUB_ENV"
           echo "Releasing $VERSION"
@@ -93,6 +95,10 @@ jobs:
         run: |
           mkdir -p build/export
           cp -R "build/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app" build/export/
+
+          # Stamp the release version so About and Finder show it.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" \
+            "build/export/$APP_NAME.app/Contents/Info.plist"
 
           security unlock-keychain -p temppass "$KEYCHAIN"
 
