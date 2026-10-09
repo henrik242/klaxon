@@ -263,4 +263,18 @@ final class AlertWindowTests: XCTestCase {
 
         return nil
     }
+
+    // MARK: - Join Link Extraction
+
+    func testExtractTeamsMeetupJoinLinkKeepsContext() {
+        let link = "https://teams.microsoft.com/l/meetup-join/19%3ameeting_NjQ1ZTVk%40thread.v2/0?context=%7b%22Tid%22%3a%22abc%22%2c%22Oid%22%3a%22def%22%7d"
+        let notes = "Microsoft Teams meeting\nJoin on your computer\nClick here to join the meeting<\(link)>\nMeeting ID: 123"
+        XCTAssertEqual(AlertWindowController.extractVideoConferenceURL(from: notes)?.absoluteString, link)
+    }
+
+    func testExtractTeamsMeetLinkKeepsPasscode() {
+        let link = "https://teams.microsoft.com/meet/38512345678?p=AbCdEf123"
+        let notes = "Join the meeting now <\(link)>"
+        XCTAssertEqual(AlertWindowController.extractVideoConferenceURL(from: notes)?.absoluteString, link)
+    }
 }

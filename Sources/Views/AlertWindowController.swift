@@ -219,7 +219,7 @@ final class AlertWindowController: NSWindowController {
 
         // Search in notes/description for video conference links
         if let notes = event.notes, !notes.isEmpty {
-            if let url = extractVideoConferenceURL(from: notes) {
+            if let url = Self.extractVideoConferenceURL(from: notes) {
                 return url
             }
         }
@@ -245,14 +245,15 @@ final class AlertWindowController: NSWindowController {
         return videoConferenceHosts.contains { host.contains($0) }
     }
 
-    private func extractVideoConferenceURL(from text: String) -> URL? {
+    static func extractVideoConferenceURL(from text: String) -> URL? {
         // Patterns for common video conference URLs
         let patterns = [
             "https://[\\w.-]*zoom\\.us/j/[\\w?=&-]+",
             "https://[\\w.-]*zoom\\.com/j/[\\w?=&-]+",
             "https://meet\\.google\\.com/[\\w-]+",
-            "https://teams\\.microsoft\\.com/l/meetup-join/[\\w%/-]+",
-            "https://teams\\.live\\.com/meet/[\\w-]+",
+            // Teams needs the full URL incl. ?context= (tenant/organizer), else it opens the chat
+            "https://teams\\.microsoft\\.com/(l/meetup-join|meet)/[^\\s<>\"]+",
+            "https://teams\\.live\\.com/meet/[^\\s<>\"]+",
             "https://[\\w.-]*webex\\.com/[\\w/.-]+",
             "https://[\\w.-]*gotomeeting\\.com/join/[\\w-]+",
             "https://[\\w.-]*gotomeet\\.me/[\\w-]+",
