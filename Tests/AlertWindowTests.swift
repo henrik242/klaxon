@@ -173,7 +173,7 @@ final class AlertWindowTests: XCTestCase {
         let controller = AlertWindowController(event: mockEvent)
 
         let contentView = controller.window?.contentView
-        let silenceButton = findButton(in: contentView, withTitle: "Silence")
+        let silenceButton = findButton(in: contentView, withTitle: "Forget this")
 
         XCTAssertNotNil(silenceButton, "Window should contain a Silence button")
     }
@@ -186,7 +186,7 @@ final class AlertWindowTests: XCTestCase {
         })
         controller.showWindow(nil)
 
-        let silenceButton = findButton(in: controller.window?.contentView, withTitle: "Silence")
+        let silenceButton = findButton(in: controller.window?.contentView, withTitle: "Forget this")
         silenceButton?.performClick(nil)
 
         XCTAssertTrue(silencedEvent === mockEvent, "Silence should invoke onSilence with the event")
