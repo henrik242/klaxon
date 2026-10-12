@@ -50,6 +50,7 @@
 "preferences.general.header" = "General";
 "preferences.general.startAtLogin" = "Start Calendar Klaxon at login";
 "preferences.general.showWelcome" = "Show welcome on start";
+"preferences.general.chromeNewWindow" = "Open meetings in a new Chrome window";
 
 // Buttons
 "preferences.button.ok" = "OK";

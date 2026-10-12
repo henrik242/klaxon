@@ -396,8 +396,38 @@ final class AlertWindowController: NSWindowController {
     @objc private func joinMeeting() {
         stopAlertSound()
         if let url = joinURL {
-            NSWorkspace.shared.open(url)
+            Self.openJoinURL(url)
         }
         close()
+    }
+
+    /// Opens web links in a new Chrome window when that preference is on and
+    /// Chrome is installed; anything else goes to the default handler.
+    static func openJoinURL(_ url: URL) {
+        let isWeb = url.scheme == "https" || url.scheme == "http"
+        guard Preferences.shared.openMeetingsInNewChromeWindow, isWeb,
+              NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") != nil else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        // Launch arguments from a sandboxed app reach Chrome without the URL,
+        // so drive it over Apple Events instead.
+        let escaped = url.absoluteString
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let source = """
+        tell application id "com.google.Chrome"
+            set w to make new window
+            set URL of active tab of w to "\(escaped)"
+            activate
+        end tell
+        """
+        DispatchQueue.global(qos: .userInitiated).async {
+            var error: NSDictionary?
+            NSAppleScript(source: source)?.executeAndReturnError(&error)
+            if error != nil {
+                DispatchQueue.main.async { NSWorkspace.shared.open(url) }
+            }
+        }
     }
 }

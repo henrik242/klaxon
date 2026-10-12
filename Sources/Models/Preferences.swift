@@ -166,6 +166,7 @@ final class Preferences {
         static let respectDoNotDisturb = "respectDoNotDisturb"
         static let ignoredTitlePatterns = "ignoredTitlePatterns"
         static let workingHours = "workingHours"
+        static let openMeetingsInNewChromeWindow = "openMeetingsInNewChromeWindow"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -225,6 +226,12 @@ final class Preferences {
     var respectDoNotDisturb: Bool {
         get { defaults.bool(forKey: Keys.respectDoNotDisturb) }
         set { defaults.set(newValue, forKey: Keys.respectDoNotDisturb) }
+    }
+
+    /// Whether Join opens web meeting links in a new Google Chrome window
+    var openMeetingsInNewChromeWindow: Bool {
+        get { defaults.bool(forKey: Keys.openMeetingsInNewChromeWindow) }
+        set { defaults.set(newValue, forKey: Keys.openMeetingsInNewChromeWindow) }
     }
 
     /// Check if system Do Not Disturb / Focus mode is currently active

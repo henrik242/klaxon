@@ -20,6 +20,8 @@
 	<string>Copyright © 2026 Michael L. Welles. All rights reserved.</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Klaxon opens meeting links in a new Google Chrome window when that option is enabled.</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>LSApplicationCategoryType</key>

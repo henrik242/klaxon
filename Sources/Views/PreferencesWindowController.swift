@@ -32,6 +32,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate, N
     private var launchAtLoginCheckbox: NSButton!
     private var showWindowOnLaunchCheckbox: NSButton!
     private var respectDNDCheckbox: NSButton!
+    private var chromeNewWindowCheckbox: NSButton!
     private var audioPlayer: AVAudioPlayer?
     private var audioStopTimer: Timer?
     private var calendarsTableView: NSTableView!
@@ -384,6 +385,11 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate, N
         showWindowOnLaunchCheckbox.setAccessibilityIdentifier("showWelcomeCheckbox")
         tabContent.addSubview(showWindowOnLaunchCheckbox)
 
+        // Open meetings in a new Chrome window checkbox
+        chromeNewWindowCheckbox = createCheckbox(title: NSLocalizedString("preferences.general.chromeNewWindow", value: "Open meetings in a new Chrome window", comment: "Open meetings in new Chrome window checkbox"), action: #selector(chromeNewWindowToggled))
+        chromeNewWindowCheckbox.setAccessibilityIdentifier("chromeNewWindowCheckbox")
+        tabContent.addSubview(chromeNewWindowCheckbox)
+
         NSLayoutConstraint.activate([
             // General header
             generalHeaderLabel.topAnchor.constraint(equalTo: tabContent.topAnchor, constant: 16),
@@ -396,6 +402,10 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate, N
             // Show window on launch
             showWindowOnLaunchCheckbox.topAnchor.constraint(equalTo: launchAtLoginCheckbox.bottomAnchor, constant: 8),
             showWindowOnLaunchCheckbox.leadingAnchor.constraint(equalTo: tabContent.leadingAnchor, constant: 16),
+
+            // Open meetings in a new Chrome window
+            chromeNewWindowCheckbox.topAnchor.constraint(equalTo: showWindowOnLaunchCheckbox.bottomAnchor, constant: 8),
+            chromeNewWindowCheckbox.leadingAnchor.constraint(equalTo: tabContent.leadingAnchor, constant: 16),
         ])
 
         return tabContent
@@ -715,6 +725,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate, N
         launchAtLoginCheckbox.state = loginItemService.isEnabled ? .on : .off
         showWindowOnLaunchCheckbox.state = Preferences.shared.showWindowOnLaunch ? .on : .off
         respectDNDCheckbox.state = Preferences.shared.respectDoNotDisturb ? .on : .off
+        chromeNewWindowCheckbox.state = Preferences.shared.openMeetingsInNewChromeWindow ? .on : .off
 
         let wh = Preferences.shared.workingHours
         workingHoursEnabledCheckbox.state = wh.enabled ? .on : .off
@@ -1096,6 +1107,10 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate, N
 
     @objc private func showWindowOnLaunchToggled() {
         Preferences.shared.showWindowOnLaunch = showWindowOnLaunchCheckbox.state == .on
+    }
+
+    @objc private func chromeNewWindowToggled() {
+        Preferences.shared.openMeetingsInNewChromeWindow = chromeNewWindowCheckbox.state == .on
     }
 
     @objc private func respectDNDToggled() {
